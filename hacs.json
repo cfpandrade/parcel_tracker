@@ -2,7 +2,7 @@
   "name": "Parcel Tracker",
   "country": "GLOBAL",
   "domain": "parcel_tracker",
-  "homeassistant": "2021.12.0",
+  "homeassistant": "2024.12.0",
   "render_readme": true,
   "zip_release": true,
   "filename": "custom_components/parcel_tracker",
