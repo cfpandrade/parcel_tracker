@@ -7,6 +7,6 @@
   "zip_release": true,
   "filename": "custom_components/parcel_tracker",
   "source": "https://github.com/cfpandrade/parcel_tracker",
-  "iot_class": "cloud_polling",
+  "iot_class": "local_polling",
   "icon": "mdi:package-variant"
 }
