@@ -89,9 +89,11 @@ class ParcelTrackerSensor(SensorEntity):
                         if delivery_date and days_until_delivery != "Delivered":
                             try:
                                 delivery_date_obj = datetime.strptime(delivery_date, "%Y-%m-%d %H:%M:%S")
-                                days_until = (delivery_date_obj - today).days
+                                days_until = (delivery_date_obj.date() - today.date()).days
+                                
                                 if days_until > 0:
-                                    days_until_delivery = f"{days_until} days"
+                                    day_label = "day" if days_until == 1 else "days"
+                                    days_until_delivery = f"{days_until + 1} {day_label}"
                             except ValueError:
                                 _LOGGER.warning(f"Invalid date format: {delivery_date}")
 
