@@ -9,12 +9,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 CARRIER_MAP = {
-    "amzluk": "Amazon",
-    "ups": "UPS",
-    "dpdie": "DPD Ireland",
-    "anpost": "An Post",
-    "sypo": "Synergy",
-    "fedex": "FedEx"
+    "amzluk": "Amazon"
 }
 
 class ParcelTrackerSensor(SensorEntity):
@@ -26,7 +21,7 @@ class ParcelTrackerSensor(SensorEntity):
         self._token = config["token"]
         self._state = "Initializing"
         self._data = []
-        self._attr_unique_id = f"parcel_tracker_{self._token}"  
+        self._attr_unique_id = f"parcel_tracker_{self._token}"
         self._attr_icon = "mdi:package-variant-closed"
 
     @property
@@ -39,13 +34,17 @@ class ParcelTrackerSensor(SensorEntity):
 
     @property
     def state(self):
-        return self._state  
+        """Return the number of pending deliveries."""
+        pending_deliveries = sum(1 for order in self._data if order["status"] not in ["Delivered", "Unknown"])
+        return f"{pending_deliveries} pending deliveries"
 
     @property
     def extra_state_attributes(self):
+        """Return the extra attributes with detailed parcel data."""
         return {"orders": self._data}
 
     async def async_update(self):
+        """Fetch the latest data from the API."""
         headers = {
             "Cookie": f"account_token={self._token}",
             "User-Agent": "Home Assistant Custom Component",
@@ -104,7 +103,6 @@ class ParcelTrackerSensor(SensorEntity):
                             "status": days_until_delivery
                         })
 
-                    self._state = "Updated"
         except aiohttp.ClientError as e:
             _LOGGER.error(f"Network error fetching data: {e}")
             self._state = "Network Error"
@@ -112,42 +110,7 @@ class ParcelTrackerSensor(SensorEntity):
             _LOGGER.exception(f"Unexpected error: {e}")
             self._state = "Unknown Error"
 
-
-class ParcelTrackerStatusSensor(SensorEntity):
-    """Sensor to count pending parcel deliveries."""
-
-    def __init__(self, tracker_sensor):
-        self._name = "Parcel Tracker Status 📦"
-        self._tracker_sensor = tracker_sensor
-        self._state = None
-        self._attr_unique_id = f"{tracker_sensor.unique_id}_status"
-        self._attr_icon = "mdi:truck-delivery"
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def unique_id(self):
-        return self._attr_unique_id
-
-    @property
-    def state(self):
-        return self._state
-
-    async def async_update(self):
-        if not self._tracker_sensor.extra_state_attributes:
-            return
-        
-        orders = self._tracker_sensor.extra_state_attributes.get("orders", [])
-        pending_deliveries = sum(1 for order in orders if order["status"] not in ["Delivered", "Unknown"])
-
-        self._state = f"{pending_deliveries} pending deliveries"
-
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the sensor platform."""
     config = hass.data[DOMAIN][entry.entry_id]
-    tracker_sensor = ParcelTrackerSensor(config)
-    status_sensor = ParcelTrackerStatusSensor(tracker_sensor)
-    
-    async_add_entities([tracker_sensor, status_sensor], True)
+    async_add_entities([ParcelTrackerSensor(config)], True)
