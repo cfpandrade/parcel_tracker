@@ -16,15 +16,22 @@ class ParcelTrackerSensor(SensorEntity):
     """Sensor to track parcel information."""
 
     def __init__(self, config):
-        self._name = "Parcel Tracker"
+        self._name = "Parcel Tracker 📦"
         self._url = config["url"]
         self._token = config["token"]
         self._state = "Initializing"
         self._data = []
+        self._attr_unique_id = f"parcel_tracker_{self._token}"  # Unique ID based on token
+        self._attr_icon = "mdi:package-variant-closed"  # HA package icon
 
     @property
     def name(self):
         return self._name
+
+    @property
+    def unique_id(self):
+        """Return a unique ID for this sensor."""
+        return self._attr_unique_id
 
     @property
     def state(self):
@@ -56,7 +63,7 @@ class ParcelTrackerSensor(SensorEntity):
                         raw_data = raw_data[json_start:json_end]
 
                     try:
-                        data = json.loads(raw_data)  # Convertir a JSON estructurado
+                        data = json.loads(raw_data)  # Convert to structured JSON
                         if not isinstance(data, list) or not data[0]:
                             _LOGGER.error("Unexpected API response format")
                             self._state = "Invalid Data"
