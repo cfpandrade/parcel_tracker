@@ -1,0 +1,14 @@
+{
+  "domain": "parcel_tracker",
+  "name": "Parcel Tracker",
+  "config_flow": true,
+  "documentation": "https://github.com/cfpandrade/parcel-tracker",
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dependencies": [],
+  "codeowners": ["@carlos_andrade"],
+  "iot_class": "cloud_polling",
+  "version": "1.0.2"
+}
