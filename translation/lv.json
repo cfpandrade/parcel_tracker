@@ -1,0 +1,11 @@
+{
+    "title": "Paku izsekošana 📦",
+    "config": {
+      "step": {
+        "user": {
+          "title": "Iestatīt Paku izsekošanu 📦",
+          "description": "Ievadiet izsekošanas API datus"
+        }
+      }
+    }
+  }  

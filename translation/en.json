@@ -1,0 +1,12 @@
+{
+    "title": "Parcel Tracker 📦",
+    "config": {
+      "step": {
+        "user": {
+          "title": "Setup Parcel Tracker 📦",
+          "description": "Enter your tracking API details"
+        }
+      }
+    }
+  }
+  
