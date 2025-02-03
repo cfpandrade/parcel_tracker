@@ -1,5 +1,7 @@
 # 📦 Parcel Tracker - Home Assistant Integration
 
+[![Open your Home Assistant instance and show the add-on repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=cfpandrade&repository=parcel_tracker&category=integration)
+
 A custom Home Assistant integration for tracking packages from multiple carriers directly in your Home Assistant dashboard.
 
 ---
