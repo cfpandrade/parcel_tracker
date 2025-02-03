@@ -93,9 +93,9 @@ class ParcelTrackerSensor(SensorEntity):
                                 
                                 if days_until > 0:
                                     day_label = "day" if days_until == 1 else "days"
-                                    days_until_delivery = f"{days_until + 1} {day_label}"
+                                    days_until_delivery = f"{days_until} {day_label}"
                             except ValueError:
-                                _LOGGER.warning(f"Invalid date format: {delivery_date}")
+                                _LOGGER.warning(f"Invalid date format for order {number} ({name}): {delivery_date}")
 
                         self._data.append({
                             "number": number,
