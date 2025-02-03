@@ -9,7 +9,12 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 CARRIER_MAP = {
-    "amzluk": "Amazon"
+    "amzluk": "Amazon",
+    "ups": "UPS",
+    "dpdie": "DPD Ireland",
+    "anpost": "An Post",
+    "sypo": "Synergy",
+    "fedex": "FedEx"
 }
 
 class ParcelTrackerSensor(SensorEntity):
@@ -35,7 +40,7 @@ class ParcelTrackerSensor(SensorEntity):
     @property
     def state(self):
         """Return the number of pending deliveries."""
-        pending_deliveries = sum(1 for order in self._data if order["status"] not in ["Delivered", "Unknown"])
+        pending_deliveries = sum(1 for order in self._data if order["status"].lower() != "delivered")
         return f"{pending_deliveries} pending deliveries"
 
     @property
@@ -83,16 +88,19 @@ class ParcelTrackerSensor(SensorEntity):
                         status = order[4][0][0] if order[4] else "Unknown"
                         delivery_date = order[5]
 
-                        days_until_delivery = "Delivered" if "delivered" in status.lower() else "Unknown"
+                        if "delivered" in status.lower():
+                            status_label = "Delivered"
+                        else:
+                            status_label = "Unknown"
 
-                        if delivery_date and days_until_delivery != "Delivered":
+                        if delivery_date and status_label != "Delivered":
                             try:
                                 delivery_date_obj = datetime.strptime(delivery_date, "%Y-%m-%d %H:%M:%S")
                                 days_until = (delivery_date_obj.date() - today.date()).days
                                 
                                 if days_until > 0:
                                     day_label = "day" if days_until == 1 else "days"
-                                    days_until_delivery = f"{days_until} {day_label}"
+                                    status_label = f"{days_until} {day_label}"
                             except ValueError:
                                 _LOGGER.warning(f"Invalid date format for order {number} ({name}): {delivery_date}")
 
@@ -100,7 +108,7 @@ class ParcelTrackerSensor(SensorEntity):
                             "number": number,
                             "name": name,
                             "carrier": carrier,
-                            "status": days_until_delivery
+                            "status": status_label
                         })
 
         except aiohttp.ClientError as e:
