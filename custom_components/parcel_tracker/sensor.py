@@ -8,26 +8,28 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-CARRIER_MAP = {
-    "amzluk": "Amazon",
-    "ups": "UPS",
-    "dpdie": "DPD Ireland",
-    "anpost": "An Post",
-    "sypo": "Synergy",
-    "fedex": "FedEx"
+STATUS_MAP = {
+    0: "Entregado",
+    1: "Congelado",
+    2: "En tránsito",
+    3: "Esperando recogida",
+    4: "En camino para entrega",
+    5: "No encontrado",
+    6: "Intento de entrega fallido",
+    7: "Excepción en la entrega",
+    8: "Información recibida por el transportista"
 }
 
 class ParcelTrackerSensor(SensorEntity):
-    """Sensor to track parcel information."""
+    """Sensor para rastrear información de paquetes."""
 
     def __init__(self, config):
         self._name = "Parcel Tracker 📦"
-        self._url = config["url"]
-        self._token = config["token"]
-        self._state = "Initializing"
+        self._api_key = config["api_key"]
+        self._state = "Inicializando"
         self._data = []
-        self._attr_unique_id = f"parcel_tracker_{self._token}"
-        self._attr_icon = "mdi:package-variant-closed"
+        self._attr_unique_id = f"parcel_tracker_{self._api_key}"  # ID único basado en la clave API
+        self._attr_icon = "mdi:package-variant-closed"  # Icono de paquete de HA
 
     @property
     def name(self):
@@ -35,90 +37,62 @@ class ParcelTrackerSensor(SensorEntity):
 
     @property
     def unique_id(self):
+        """Devuelve un ID único para este sensor."""
         return self._attr_unique_id
 
     @property
     def state(self):
-        """Return the number of pending deliveries."""
-        pending_deliveries = sum(1 for order in self._data if order["status"].lower() != "delivered")
-        return f"{pending_deliveries} pending deliveries"
+        return self._state  # Podría ser "Actualizado" o un mensaje de error
 
     @property
     def extra_state_attributes(self):
-        """Return the extra attributes with detailed parcel data."""
-        return {"orders": self._data}
+        """Devuelve los atributos adicionales con solo los datos relevantes del paquete."""
+        return {"deliveries": self._data}
 
     async def async_update(self):
-        """Fetch the latest data from the API."""
+        """Obtiene los datos más recientes de la API."""
         headers = {
-            "Cookie": f"account_token={self._token}",
+            "api-key": self._api_key,
             "User-Agent": "Home Assistant Custom Component",
             "Accept-Encoding": "gzip, deflate, br"
         }
 
+        params = {
+            "filter_mode": "active"  # O "recent", según tus necesidades
+        }
+
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(self._url, headers=headers) as response:
+                async with session.get("https://api.parcel.app/external/deliveries/", headers=headers, params=params) as response:
                     response.raise_for_status()
-                    raw_data = await response.text()
+                    data = await response.json()
 
-                    if raw_data.startswith("jQuery"):
-                        json_start = raw_data.find("(") + 1
-                        json_end = raw_data.rfind(")")
-                        raw_data = raw_data[json_start:json_end]
-
-                    try:
-                        data = json.loads(raw_data)
-                        if not isinstance(data, list) or not data[0]:
-                            _LOGGER.error("Unexpected API response format")
-                            self._state = "Invalid Data"
-                            return
-                    except json.JSONDecodeError as e:
-                        _LOGGER.error(f"Failed to parse JSON: {e}")
-                        self._state = "Data Error"
+                    if not data.get("success", False):
+                        _LOGGER.error(f"Error en la API: {data.get('error_message', 'Mensaje de error no proporcionado')}")
+                        self._state = "Error en la API"
                         return
 
                     self._data = []
-                    today = datetime.now()
-
-                    for order in data[0]:
-                        number = order[0]
-                        name = order[1]
-                        carrier = CARRIER_MAP.get(order[2], order[2])
-                        status = order[4][0][0] if order[4] else "Unknown"
-                        delivery_date = order[5]
-
-                        if "delivered" in status.lower():
-                            status_label = "Delivered"
-                        else:
-                            status_label = "Unknown"
-
-                        if delivery_date and status_label != "Delivered":
-                            try:
-                                delivery_date_obj = datetime.strptime(delivery_date, "%Y-%m-%d %H:%M:%S")
-                                days_until = (delivery_date_obj.date() - today.date()).days
-                                
-                                if days_until > 0:
-                                    day_label = "day" if days_until == 1 else "days"
-                                    status_label = f"{days_until} {day_label}"
-                            except ValueError:
-                                _LOGGER.warning(f"Invalid date format for order {number} ({name}): {delivery_date}")
+                    for delivery in data.get("deliveries", []):
+                        tracking_number = delivery.get("tracking_number")
+                        description = delivery.get("description")
+                        carrier_code = delivery.get("carrier_code")
+                        status_code = delivery.get("status_code")
+                        status = STATUS_MAP.get(status_code, "Estado desconocido")
+                        date_expected = delivery.get("date_expected")
 
                         self._data.append({
-                            "number": number,
-                            "name": name,
-                            "carrier": carrier,
-                            "status": status_label
+                            "tracking_number": tracking_number,
+                            "description": description,
+                            "carrier": carrier_code,
+                            "status": status,
+                            "date_expected": date_expected
                         })
 
+                    self._state = "Actualizado"
         except aiohttp.ClientError as e:
-            _LOGGER.error(f"Network error fetching data: {e}")
-            self._state = "Network Error"
+            _LOGGER.error(f"Error de red al obtener datos: {e}")
+            self._state = "Error de red"
         except Exception as e:
-            _LOGGER.exception(f"Unexpected error: {e}")
-            self._state = "Unknown Error"
-
-async def async_setup_entry(hass, entry, async_add_entities):
-    """Set up the sensor platform."""
-    config = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([ParcelTrackerSensor(config)], True)
+            _LOGGER.exception(f"Error inesperado: {e}")
+            self._state = "Error desconocido"
