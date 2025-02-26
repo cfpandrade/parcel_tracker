@@ -31,8 +31,8 @@ class ParcelTrackerSensor(SensorEntity):
         self._api_key = config["api_key"]
         self._state = "Initializing"
         self._data = []
-        self._attr_unique_id = f"parcel_tracker_{self._api_key}"  # Unique ID based on API key
-        self._attr_icon = "mdi:package-variant-closed"  # Home Assistant package icon
+        self._attr_unique_id = f"parcel_tracker_{self._api_key}"
+        self._attr_icon = "mdi:package-variant-closed"
 
     @property
     def name(self):
@@ -45,28 +45,31 @@ class ParcelTrackerSensor(SensorEntity):
 
     @property
     def state(self):
-        return self._state  # Could be "Updated" or an error message
+        return self._state
 
     @property
     def extra_state_attributes(self):
-        """Return the extra attributes with only relevant parcel data."""
+        """Return the extra attributes with parcel data including events."""
         return {"deliveries": self._data}
 
     async def async_update(self):
         """Fetch the latest data from the API."""
+        # Using exactly the same format as the successful curl command
         headers = {
             "api-key": self._api_key,
-            "User-Agent": "Home Assistant Custom Component",
-            "Accept-Encoding": "gzip, deflate, br"
+            "User-Agent": "Home Assistant Custom Component"
         }
 
         params = {
-            "filter_mode": "active"  # Or "recent", depending on your needs
+            "filter_mode": "active"
         }
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get("https://api.parcel.app/external/deliveries/", headers=headers, params=params) as response:
+            # Create ClientSession with compression enabled (like curl --compressed)
+            async with aiohttp.ClientSession(compress=True) as session:
+                async with session.get("https://api.parcel.app/external/deliveries/", 
+                                      headers=headers, 
+                                      params=params) as response:
                     response.raise_for_status()
                     data = await response.json()
 
@@ -75,6 +78,7 @@ class ParcelTrackerSensor(SensorEntity):
                         self._state = "API Error"
                         return
 
+                    # Process deliveries
                     self._data = []
                     for delivery in data.get("deliveries", []):
                         tracking_number = delivery.get("tracking_number")
@@ -83,16 +87,39 @@ class ParcelTrackerSensor(SensorEntity):
                         status_code = delivery.get("status_code")
                         status = STATUS_MAP.get(status_code, "Unknown Status")
                         date_expected = delivery.get("date_expected")
-
-                        self._data.append({
+                        extra_information = delivery.get("extra_information")
+                        
+                        # Include events history
+                        events = delivery.get("events", [])
+                        
+                        # Get the latest event for simple display
+                        latest_event = events[0].get("event") if events else "No events"
+                        latest_date = events[0].get("date") if events else ""
+                        latest_location = events[0].get("location", "") if events else ""
+                        
+                        delivery_data = {
                             "tracking_number": tracking_number,
                             "description": description,
                             "carrier": carrier_code,
                             "status": status,
-                            "date_expected": date_expected
-                        })
+                            "latest_event": latest_event,
+                            "latest_date": latest_date,
+                            "events": events  # Include all tracking events
+                        }
+                        
+                        # Add optional fields if they exist
+                        if date_expected:
+                            delivery_data["date_expected"] = date_expected
+                        if extra_information:
+                            delivery_data["extra_information"] = extra_information
+                        if latest_location:
+                            delivery_data["latest_location"] = latest_location
+                            
+                        self._data.append(delivery_data)
 
-                    self._state = "Updated"
+                    # Update the sensor's main state with active package count
+                    self._state = f"{len(self._data)} Active"
+                    
         except aiohttp.ClientError as e:
             _LOGGER.error(f"Network error fetching data: {e}")
             self._state = "Network Error"
