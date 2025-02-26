@@ -4,8 +4,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 import aiohttp
-import asyncio
-import json
 from datetime import datetime
 from .const import DOMAIN
 
@@ -54,7 +52,6 @@ class ParcelTrackerSensor(SensorEntity):
 
     async def async_update(self):
         """Fetch the latest data from the API."""
-        # Using exactly the same format as the successful curl command
         headers = {
             "api-key": self._api_key,
             "User-Agent": "Home Assistant Custom Component"
@@ -65,16 +62,18 @@ class ParcelTrackerSensor(SensorEntity):
         }
 
         try:
-            # Create ClientSession with compression enabled (like curl --compressed)
-            async with aiohttp.ClientSession(compress=True) as session:
-                async with session.get("https://api.parcel.app/external/deliveries/", 
-                                      headers=headers, 
-                                      params=params) as response:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://api.parcel.app/external/deliveries/", 
+                    headers=headers, 
+                    params=params
+                ) as response:
                     response.raise_for_status()
-                    data = await response.json()
+                    # Bypass content type check to decode JSON even if mimetype is text/html
+                    data = await response.json(content_type=None)
 
                     if not data.get("success", False):
-                        _LOGGER.error(f"API error: {data.get('error_message', 'No error message provided')}")
+                        _LOGGER.error("API error: %s", data.get("error_message", "No error message provided"))
                         self._state = "API Error"
                         return
 
@@ -121,10 +120,10 @@ class ParcelTrackerSensor(SensorEntity):
                     self._state = f"{len(self._data)} Active"
                     
         except aiohttp.ClientError as e:
-            _LOGGER.error(f"Network error fetching data: {e}")
+            _LOGGER.error("Network error fetching data: %s", e)
             self._state = "Network Error"
         except Exception as e:
-            _LOGGER.exception(f"Unexpected error: {e}")
+            _LOGGER.exception("Unexpected error: %s", e)
             self._state = "Unknown Error"
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
