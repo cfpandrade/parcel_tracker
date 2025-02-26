@@ -17,20 +17,38 @@ class ParcelTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             api_key = user_input.get("api_key")
-            
+            scan_interval = user_input.get("scan_interval", 20)
+
             if not api_key:
                 errors["api_key"] = "API key is required"
             else:
-                # Verify the API key is valid by making a test request
+                # Verify the API key by making a test request.
                 valid = await self._test_api_key(api_key)
                 if not valid:
                     errors["api_key"] = "Invalid API key"
-            
+
             if not errors:
+                try:
+                    user_input["scan_interval"] = int(scan_interval)
+                except ValueError:
+                    errors["scan_interval"] = "The interval must be an integer"
+                    data_schema = vol.Schema({
+                        vol.Required("api_key"): str,
+                        vol.Required("scan_interval", default=20): vol.All(vol.Coerce(int), vol.Range(min=1)),
+                    })
+                    return self.async_show_form(
+                        step_id="user", 
+                        data_schema=data_schema, 
+                        errors=errors,
+                        description_placeholders={
+                            "api_info": "Enter your Parcel.app API key and update interval (in minutes)."
+                        }
+                    )
                 return self.async_create_entry(title="Parcel Tracker", data=user_input)
 
         data_schema = vol.Schema({
             vol.Required("api_key"): str,
+            vol.Required("scan_interval", default=20): vol.All(vol.Coerce(int), vol.Range(min=1)),
         })
 
         return self.async_show_form(
@@ -38,7 +56,7 @@ class ParcelTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=data_schema, 
             errors=errors,
             description_placeholders={
-                "api_info": "Enter your Parcel.app API key. You can find it in your account settings."
+                "api_info": "Enter your Parcel.app API key and update interval (in minutes). 20 minutes is recommended."
             }
         )
     
@@ -68,9 +86,42 @@ class ParcelTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Force JSON decoding by bypassing content type check
                 data = await response.json(content_type=None)
                 if not data.get("success", False):
-                    _LOGGER.error("ParcelTracker API response indicates failure: %s", data)
+                    _LOGGER.error("API response indicates failure: %s", data)
                 return data.get("success", False)
                     
         except Exception as e:
             _LOGGER.exception("Error testing ParcelTracker API key: %s", e)
             return False
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return ParcelTrackerOptionsFlow(config_entry)
+
+class ParcelTrackerOptionsFlow(config_entries.OptionsFlow):
+    """Handle options flow for Parcel Tracker."""
+
+    def __init__(self, config_entry):
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        # Use the current scan_interval from options or data, defaulting to 20 minutes.
+        current_scan_interval = self.config_entry.options.get(
+            "scan_interval", self.config_entry.data.get("scan_interval", 20)
+        )
+
+        data_schema = vol.Schema({
+            vol.Required("scan_interval", default=current_scan_interval): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        })
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=data_schema,
+            description_placeholders={
+                "info": "Set the update interval in minutes. 20 minutes is recommended."
+            }
+        )

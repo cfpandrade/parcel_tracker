@@ -4,7 +4,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 import aiohttp
-from datetime import datetime
+from datetime import timedelta
+from homeassistant.helpers.event import async_track_time_interval
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,10 +48,15 @@ class ParcelTrackerSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return the extra attributes with parcel data including events."""
+        """Return extra attributes with parcel data including events."""
         return {"deliveries": self._data}
 
-    async def async_update(self):
+    @property
+    def should_poll(self):
+        """Disable automatic polling; updates are scheduled manually."""
+        return False
+
+    async def async_update(self, now=None):
         """Fetch the latest data from the API."""
         headers = {
             "api-key": self._api_key,
@@ -69,7 +75,7 @@ class ParcelTrackerSensor(SensorEntity):
                     params=params
                 ) as response:
                     response.raise_for_status()
-                    # Bypass content type check to decode JSON even if mimetype is text/html
+                    # Force JSON decoding even if the content type is not application/json
                     data = await response.json(content_type=None)
 
                     if not data.get("success", False):
@@ -106,7 +112,6 @@ class ParcelTrackerSensor(SensorEntity):
                             "events": events  # Include all tracking events
                         }
                         
-                        # Add optional fields if they exist
                         if date_expected:
                             delivery_data["date_expected"] = date_expected
                         if extra_information:
@@ -116,7 +121,6 @@ class ParcelTrackerSensor(SensorEntity):
                             
                         self._data.append(delivery_data)
 
-                    # Update the sensor's main state with active package count
                     self._state = f"{len(self._data)} Active"
                     
         except aiohttp.ClientError as e:
@@ -129,4 +133,11 @@ class ParcelTrackerSensor(SensorEntity):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up the Parcel Tracker sensor platform from a config entry."""
     config = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([ParcelTrackerSensor(config)], True)
+    sensor = ParcelTrackerSensor(config)
+    # Disable automatic polling as we are scheduling updates manually
+    sensor.should_poll = False
+    async_add_entities([sensor], True)
+    
+    # Use the scan_interval from options if available; otherwise, fallback to the configured data.
+    scan_interval = int(entry.options.get("scan_interval", config.get("scan_interval", 20)))
+    async_track_time_interval(hass, sensor.async_update, timedelta(minutes=scan_interval))
