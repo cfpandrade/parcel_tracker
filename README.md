@@ -1,70 +1,82 @@
-# 📦 Parcel Tracker - Home Assistant Integration
+# Parcel Tracker 📦
 
-[![Open your Home Assistant instance and show the add-on repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=cfpandrade&repository=parcel_tracker&category=integration)
+Parcel Tracker is a custom Home Assistant integration that allows you to track your parcel deliveries using the Parcel API. This integration periodically polls the Parcel API to update the delivery status and displays the information in Home Assistant as a sensor.
 
-A custom Home Assistant integration for tracking packages from multiple carriers directly in your Home Assistant dashboard.
+## Features
 
----
+- **Real-time Tracking:** Displays up-to-date delivery status and expected delivery dates.
+- **Configurable:** Easily set up via the Home Assistant UI.
+- **Detailed Delivery Data:** Shows tracking number, description, carrier, status (e.g., Delivered, In Transit), and expected date.
+- **Multilingual Feedback:** Provides error messages in Spanish to guide configuration.
 
-## 🚀 Installation via HACS
+## Installation
 
-This integration is **not yet available in the default HACS store**, so you need to **add it manually** as a custom repository.
+### Prerequisites
 
-### **1️⃣ Add the Repository to HACS**
-1. Open **Home Assistant** and go to **HACS**.
-2. Click on **Integrations**.
-3. Click the **three-dot menu** (top-right) and select **Custom repositories**.
-4. In the **Repository URL** field, enter:  
-   ```
-   https://github.com/cfpandrade/parcel_tracker
-   ```
-5. Set the **category** to **Integration** and click **Add**.
-6. Refresh HACS and search for **Parcel Tracker** under "Integrations".
+- Home Assistant installed and running.
+- A valid API key from [Parcel API](https://api.parcel.app).
 
----
+### Manual Installation
 
-### **2️⃣ Install the Integration**
-1. In **HACS → Integrations**, search for **Parcel Tracker**.
-2. Click **Download** and install it.
-3. **Restart Home Assistant** once the installation is complete.
+1. Copy the `parcel_tracker` folder into your Home Assistant `custom_components` directory.
+2. Restart Home Assistant to load the new integration.
 
----
+### HACS Installation
 
-### **3️⃣ Configure the Integration**
-1. Go to **Settings → Devices & Services**.
-2. Click **Add Integration** and search for **Parcel Tracker**.
-3. Follow the setup wizard to link your package tracking accounts.
+If you use HACS (Home Assistant Community Store):
 
----
-
-## ⚡ Features
-- 📍 **Real-time tracking** of packages from multiple carriers.
-- 🔔 **Home Assistant notifications** for delivery updates.
-- 📊 **Lovelace card support** for visualizing shipments.
-- 🌎 **Multi-carrier support** (Add details here if needed).
-
----
-
-## 🛠 Manual Installation (Without HACS)
-If you prefer a **manual installation**, follow these steps:
-
-1. Download the latest release from GitHub:
-   ```
-   https://github.com/cfpandrade/parcel_tracker
-   ```
-2. Copy the `parcel_tracker` folder to:
-   ```
-   /config/custom_components/parcel_tracker/
-   ```
+1. Add this repository URL to HACS.
+2. Install the integration via HACS.
 3. Restart Home Assistant.
-4. Add the integration in **Settings → Devices & Services**.
 
----
+## Configuration
 
-## 📝 Support & Feedback
-If you encounter issues or have feature requests, please open an [issue on GitHub](https://github.com/cfpandrade/parcel_tracker/issues).
+After installation, set up the integration through Home Assistant's UI:
 
----
+1. Go to **Configuration > Integrations**.
+2. Click on **Add Integration** and search for "Parcel Tracker 📦".
+3. Enter your Parcel API key when prompted.
+4. The configuration flow validates your API key and sets up the sensor.
 
-## 📜 License
-This project is licensed under the **MIT License**.
+> **Note:** Error messages during configuration are in Spanish. For example, if an invalid API key is entered, you might see "Clave API inválida (401 Unauthorized)".
+
+## Usage
+
+Once configured, the integration creates a sensor (e.g., `sensor.parcel_tracker`) that displays:
+- **State:** "Updated" when data is fetched successfully, or an error message if something goes wrong.
+- **Extra Attributes:** A list of delivery details including tracking numbers, descriptions, carrier codes, delivery statuses, and expected dates.
+
+The available delivery statuses include:
+- Delivered
+- Frozen
+- In Transit
+- Awaiting Pickup
+- Out for Delivery
+- Not Found
+- Failed Attempt
+- Delivery Exception
+- Info Received
+
+## Troubleshooting
+
+- **Invalid API Key:**  
+  If you receive errors like "Clave API inválida (401 Unauthorized)", verify that your API key is correct.
+
+- **Network Issues:**  
+  Ensure that your Home Assistant instance has internet access and that the Parcel API is reachable.
+
+- **Logs:**  
+  Check Home Assistant logs for detailed error messages if the sensor state indicates an issue (e.g., "API Error", "Network Error", or "Unknown Error").
+
+## Contributing
+
+Contributions, bug reports, and feature requests are welcome! Feel free to open an issue or submit a pull request on the [GitHub repository](https://github.com/cfpandrade/parcel_tracker).
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Acknowledgements
+
+- Thanks to the Parcel API team for providing a robust API for tracking deliveries.
+- Developed by [cfpandrade](https://github.com/cfpandrade).
