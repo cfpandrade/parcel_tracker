@@ -1,0 +1,24 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "api_key": "API Key",
+          "scan_interval": "Scan Interval in Minutes"
+        }
+      }
+    },
+    "error": {
+      "invalid_api_key": "Invalid API key"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Scan Interval in Minutes"
+        }
+      }
+    }
+  }
+}

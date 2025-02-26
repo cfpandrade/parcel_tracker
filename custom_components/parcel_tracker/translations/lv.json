@@ -1,0 +1,24 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "api_key": "API atslēga",
+          "scan_interval": "Skenēšanas intervāls minūtēs"
+        }
+      }
+    },
+    "error": {
+      "invalid_api_key": "Nederīga API atslēga"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Skenēšanas intervāls minūtēs"
+        }
+      }
+    }
+  }
+}
