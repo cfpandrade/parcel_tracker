@@ -70,8 +70,8 @@ class ParcelTrackerSensor(SensorEntity):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    "https://api.parcel.app/external/deliveries/", 
-                    headers=headers, 
+                    "https://api.parcel.app/external/deliveries/",
+                    headers=headers,
                     params=params
                 ) as response:
                     response.raise_for_status()
@@ -132,14 +132,17 @@ class ParcelTrackerSensor(SensorEntity):
             _LOGGER.exception("Unexpected error: %s", e)
             self._state = "Unknown Error"
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up the Parcel Tracker sensor platform from a config entry."""
     config = hass.data[DOMAIN][entry.entry_id]
     sensor = ParcelTrackerSensor(config)
-    # Disable automatic polling as we are scheduling updates manually
-    sensor.should_poll = False
     async_add_entities([sensor], True)
-    
-    # Get the scan_interval (in minutes) from the configuration, defaulting to 20 minutes
+
+    # Trigger an initial update so that the entity shows current data promptly.
+    hass.async_create_task(sensor.async_update())
+
+    # Get the scan_interval (in minutes) from the configuration, defaulting to 20 minutes.
     scan_interval = int(config.get("scan_interval", 20))
     async_track_time_interval(hass, sensor.async_update, timedelta(minutes=scan_interval))
