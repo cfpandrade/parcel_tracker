@@ -112,6 +112,7 @@ class ParcelTrackerSensor(SensorEntity):
                             "events": events  # Include all tracking events
                         }
                         
+                        # Add optional fields if they exist
                         if date_expected:
                             delivery_data["date_expected"] = date_expected
                         if extra_information:
@@ -121,6 +122,7 @@ class ParcelTrackerSensor(SensorEntity):
                             
                         self._data.append(delivery_data)
 
+                    # Update the sensor's main state with the count of active deliveries
                     self._state = f"{len(self._data)} Active"
                     
         except aiohttp.ClientError as e:
@@ -138,6 +140,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     sensor.should_poll = False
     async_add_entities([sensor], True)
     
-    # Use the scan_interval from options if available; otherwise, fallback to the configured data.
-    scan_interval = int(entry.options.get("scan_interval", config.get("scan_interval", 20)))
+    # Get the scan_interval (in minutes) from the configuration, defaulting to 20 minutes
+    scan_interval = int(config.get("scan_interval", 20))
     async_track_time_interval(hass, sensor.async_update, timedelta(minutes=scan_interval))
