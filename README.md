@@ -4,6 +4,8 @@
 
 A custom Home Assistant integration for tracking packages from multiple carriers directly in your Home Assistant dashboard.
 
+This requires a premium subscription in https://web.parcelapp.net/ 
+
 ---
 
 ## 🚀 Installation via HACS
