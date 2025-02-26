@@ -65,7 +65,8 @@ class ParcelTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     _LOGGER.error("ParcelTracker API returned non-200 status: %s", response.status)
                     return False
                 
-                data = await response.json()
+                # Force JSON decoding by bypassing content type check
+                data = await response.json(content_type=None)
                 if not data.get("success", False):
                     _LOGGER.error("ParcelTracker API response indicates failure: %s", data)
                 return data.get("success", False)
