@@ -1,8 +1,11 @@
 import voluptuous as vol
 from homeassistant import config_entries
 import aiohttp
+import logging
 from homeassistant.core import callback
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 class ParcelTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Parcel Tracker."""
@@ -57,10 +60,14 @@ class ParcelTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     params=params
                 ) as response:
                     if response.status != 200:
+                        _LOGGER.error("ParcelTracker API returned non-200 status: %s", response.status)
                         return False
                     
                     data = await response.json()
+                    if not data.get("success", False):
+                        _LOGGER.error("ParcelTracker API response indicates failure: %s", data)
                     return data.get("success", False)
                     
-        except Exception:
+        except Exception as e:
+            _LOGGER.exception("Error testing ParcelTracker API key: %s", e)
             return False
