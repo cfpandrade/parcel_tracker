@@ -59,4 +59,3 @@ If you encounter issues or have feature requests, please open an [issue on GitHu
 
 ## 📜 License
 This project is licensed under the **MIT License**.
-
