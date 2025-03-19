@@ -125,6 +125,9 @@ class ParcelTrackerSensor(SensorEntity):
                     # Update the sensor's main state with the count of active deliveries
                     self._state = f"{len(self._data)} Active"
                     
+                    # Log successful update
+                    _LOGGER.debug("Successfully updated Parcel Tracker data: %d active deliveries", len(self._data))
+                    
         except aiohttp.ClientError as e:
             _LOGGER.error("Network error fetching data: %s", e)
             self._state = "Network Error"
@@ -136,13 +139,33 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up the Parcel Tracker sensor platform from a config entry."""
-    config = hass.data[DOMAIN][entry.entry_id]
+    # Combine data and options for the sensor
+    config = {**entry.data}
+    if entry.options:
+        config.update(entry.options)
+    
+    _LOGGER.debug("Setting up Parcel Tracker with scan_interval: %s minutes", 
+                 config.get("scan_interval", 20))
+    
     sensor = ParcelTrackerSensor(config)
     async_add_entities([sensor], True)
 
-    # Trigger an initial update so that the entity shows current data promptly.
-    hass.async_create_task(sensor.async_update())
+    # Trigger an initial update so that the entity shows current data promptly
+    await sensor.async_update()
 
-    # Get the scan_interval (in minutes) from the configuration, defaulting to 20 minutes.
+    # Get the scan_interval (in minutes) from the configuration, defaulting to 20 minutes
     scan_interval = int(config.get("scan_interval", 20))
-    async_track_time_interval(hass, sensor.async_update, timedelta(minutes=scan_interval))
+    
+    # Store the cancel function so we can clean it up on unload
+    cancel_interval = async_track_time_interval(
+        hass, sensor.async_update, timedelta(minutes=scan_interval)
+    )
+    
+    # Make sure we have the structure to store cancel functions
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+    if "unsub_interval" not in hass.data[DOMAIN]:
+        hass.data[DOMAIN]["unsub_interval"] = {}
+    
+    # Store the cancel function in hass.data so we can cancel it later
+    hass.data[DOMAIN]["unsub_interval"][entry.entry_id] = cancel_interval
