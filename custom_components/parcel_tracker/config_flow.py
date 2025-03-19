@@ -95,7 +95,10 @@ class ParcelTrackerOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Parcel Tracker."""
 
     def __init__(self, config_entry):
-        self.config_entry = config_entry
+        """Initialize options flow."""
+        # No establecer explícitamente self.config_entry = config_entry
+        # Esta línea era la problemática
+        self.entry = config_entry  # Usar un nombre diferente si necesitas referencia
 
     async def async_step_init(self, user_input=None):
         """Manage the options for the integration."""
@@ -103,8 +106,8 @@ class ParcelTrackerOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         # Retrieve the current scan_interval from options or data, defaulting to 20 minutes.
-        current_scan_interval = self.config_entry.options.get(
-            "scan_interval", self.config_entry.data.get("scan_interval", 20)
+        current_scan_interval = self.entry.options.get(
+            "scan_interval", self.entry.data.get("scan_interval", 20)
         )
 
         data_schema = vol.Schema({

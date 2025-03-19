@@ -5,6 +5,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 import aiohttp
 from datetime import timedelta
+import random
+import math
+import asyncio
 from homeassistant.helpers.event import async_track_time_interval
 from .const import DOMAIN
 
@@ -32,6 +35,11 @@ class ParcelTrackerSensor(SensorEntity):
         self._data = []
         self._attr_unique_id = f"parcel_tracker_{self._api_key}"
         self._attr_icon = "mdi:package-variant-closed"
+        # Backoff settings
+        self._retry_count = 0
+        self._max_retries = 5
+        self._base_wait_time = 60  # Base wait time in seconds
+        self._last_successful_update = None
 
     @property
     def name(self):
@@ -49,12 +57,53 @@ class ParcelTrackerSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return extra attributes with parcel data including events."""
-        return {"deliveries": self._data}
+        attributes = {
+            "deliveries": self._data
+        }
+        if self._last_successful_update:
+            attributes["last_successful_update"] = self._last_successful_update
+        if self._retry_count > 0:
+            attributes["rate_limit_retries"] = self._retry_count
+        return attributes
 
     @property
     def should_poll(self):
         """Disable automatic polling; updates are scheduled manually."""
         return False
+    
+    def _calculate_backoff_time(self):
+        """Calculate exponential backoff time with jitter."""
+        # Calculate base exponential backoff
+        backoff = min(600, self._base_wait_time * (2 ** self._retry_count))  # Max 10 minutes
+        # Add random jitter (±25%)
+        jitter = random.uniform(-0.25 * backoff, 0.25 * backoff)
+        return max(60, math.floor(backoff + jitter))  # Ensure at least 60 seconds
+    
+    async def _handle_rate_limit(self):
+        """Handle rate limiting by implementing exponential backoff."""
+        if self._retry_count < self._max_retries:
+            self._retry_count += 1
+            wait_time = self._calculate_backoff_time()
+            
+            _LOGGER.warning(
+                "Rate limited by API (429). Retry %d/%d after %d seconds.", 
+                self._retry_count, self._max_retries, wait_time
+            )
+            
+            self._state = f"Rate limited (retry {self._retry_count}/{self._max_retries})"
+            self.async_write_ha_state()
+            
+            # Schedule a retry after the backoff period
+            await asyncio.sleep(wait_time)
+            return True
+        else:
+            _LOGGER.error(
+                "Maximum retries reached (%d) after rate limit errors. Will try again on next scheduled update.",
+                self._max_retries
+            )
+            self._state = "Rate limit exceeded"
+            self._retry_count = 0  # Reset for next regular update
+            return False
 
     async def async_update(self, now=None):
         """Fetch the latest data from the API."""
@@ -74,6 +123,34 @@ class ParcelTrackerSensor(SensorEntity):
                     headers=headers,
                     params=params
                 ) as response:
+                    # Check for rate limiting
+                    if response.status == 429:
+                        _LOGGER.warning("Received 429 Too Many Requests from API")
+                        retry_after = response.headers.get('Retry-After')
+                        
+                        if retry_after:
+                            try:
+                                # If Retry-After header is present, use that value
+                                wait_seconds = int(retry_after)
+                                _LOGGER.info("API provided Retry-After: %d seconds", wait_seconds)
+                                await asyncio.sleep(wait_seconds)
+                                # Try once more immediately after waiting
+                                return await self.async_update()
+                            except (ValueError, TypeError):
+                                pass  # If we can't parse Retry-After, use our backoff mechanism
+                        
+                        # Use our exponential backoff mechanism
+                        should_retry = await self._handle_rate_limit()
+                        if should_retry:
+                            return await self.async_update()
+                        return
+                    
+                    # Reset retry count on successful status
+                    if response.status == 200:
+                        if self._retry_count > 0:
+                            _LOGGER.info("API request successful after %d retries", self._retry_count)
+                        self._retry_count = 0
+                    
                     response.raise_for_status()
                     # Force JSON decoding even if the content type is not application/json
                     data = await response.json(content_type=None)
@@ -124,6 +201,7 @@ class ParcelTrackerSensor(SensorEntity):
 
                     # Update the sensor's main state with the count of active deliveries
                     self._state = f"{len(self._data)} Active"
+                    self._last_successful_update = now.isoformat() if now else None
                     
                     # Log successful update
                     _LOGGER.debug("Successfully updated Parcel Tracker data: %d active deliveries", len(self._data))
