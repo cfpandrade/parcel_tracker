@@ -9,6 +9,7 @@ import random
 import math
 import asyncio
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,7 +29,8 @@ STATUS_MAP = {
 class ParcelTrackerSensor(SensorEntity):
     """Sensor to track parcel information."""
 
-    def __init__(self, config):
+    def __init__(self, config, hass: HomeAssistant):
+        self.hass = hass
         self._name = "Parcel Tracker 📦"
         self._api_key = config["api_key"]
         self._state = "Initializing"
@@ -117,8 +119,8 @@ class ParcelTrackerSensor(SensorEntity):
         }
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
+            session = async_get_clientsession(self.hass)
+            async with session.get(
                     "https://api.parcel.app/external/deliveries/",
                     headers=headers,
                     params=params
@@ -225,7 +227,7 @@ async def async_setup_entry(
     _LOGGER.debug("Setting up Parcel Tracker with scan_interval: %s minutes", 
                  config.get("scan_interval", 20))
     
-    sensor = ParcelTrackerSensor(config)
+    sensor = ParcelTrackerSensor(config, hass)
     async_add_entities([sensor], True)
 
     # Trigger an initial update so that the entity shows current data promptly
