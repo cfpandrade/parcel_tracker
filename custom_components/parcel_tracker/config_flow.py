@@ -96,9 +96,8 @@ class ParcelTrackerOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize options flow."""
-        # No establecer explícitamente self.config_entry = config_entry
-        # Esta línea era la problemática
-        self.entry = config_entry  # Usar un nombre diferente si necesitas referencia
+        # Store the config entry for access during options flow
+        self.entry = config_entry
 
     async def async_step_init(self, user_input=None):
         """Manage the options for the integration."""

@@ -10,8 +10,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = entry.data
     
-    # Forward the setup to the sensor platform.
-    # CORRECCIÓN: Usar await aquí para esperar a que se complete la configuración
+    # Forward setup to the sensor platform and wait until it is ready
     await hass.config_entries.async_forward_entry_setup(entry, "sensor")
     
     # Listen for options updates so we can reload when the scan_interval is changed.
